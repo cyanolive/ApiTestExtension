@@ -5,104 +5,122 @@ using System;
 using System.Collections.Generic;
 using ApiTestExtension.DataStructure.Matcher;
 using System.Text;
+using ApiTestExtension.DataStructure.XMLAnalyzer;
 
 namespace ApiTestExtension.Utils
 {
     public class JsonUtil
     {
         public static JsonXMLMatcher matchJsonWithXML(Dictionary<String, JsonResponseEntry> jsonResponseEntry,
-            Dictionary<String, XMLResponseItem> xmlResponseItems)
+            Dictionary<String, XMLResponseItem> xmlResponseItems, bool isRootList)
         {
             JsonXMLMatcher matcher = new JsonXMLMatcher();
 
             Dictionary<String, XMLResponseItem> xmlResponseItemsCopy = new Dictionary<String, XMLResponseItem>(xmlResponseItems);
-            //遍历每一个json中的数据格式，和XML对比，找到差异和是否有json中多余的部分，
-            //匹配成功则在XML对象中移除相关Key，剩余的便是XML有但是json没有的部分了
-            foreach (String key in jsonResponseEntry.Keys)
+
+            //如果是List节点需要遍历每一个List内容来判断XML匹配
+            if (jsonResponseEntry.Count == 1 && jsonResponseEntry.ContainsKey("") && jsonResponseEntry[""].type == JsonResponseEntry.ResponseEntryType.LIST_ENTRY)
             {
-                if (xmlResponseItemsCopy.ContainsKey(key))
+                if (isRootList)
                 {
-                    JsonXMLItemMatcher result = matchJsonEntryWithXMLItem(jsonResponseEntry[key], xmlResponseItems[key]);
-                    matcher.jsonItemMatchStatus.Add(key, result);
+                    matcher = matchJsonWithXML(jsonResponseEntry[""].subEntry, xmlResponseItems, false);
                 }
                 else
                 {
-                    matcher.jsonEntryNotFound.Add(key);
+                    matcher.matchResult = JsonXMLMatcher.MatchResult.NOT_MATCH;
+                    matcher.strResult = "Json type is List but do not match with the XML";
                 }
-                xmlResponseItemsCopy.Remove(key);
+            }
+            else
+            {
+                //遍历每一个json中的数据格式，和XML对比，找到差异和是否有json中多余的部分，
+                //匹配成功则在XML对象中移除相关Key，剩余的便是XML有但是json没有的部分了
+                foreach (String key in jsonResponseEntry.Keys)
+                {
+                    if (xmlResponseItemsCopy.ContainsKey(key))
+                    {
+                        JsonXMLItemMatcher result = matchJsonEntryWithXMLItem(jsonResponseEntry[key], xmlResponseItems[key]);
+                        matcher.jsonItemMatchStatus.Add(key, result);
+                    }
+                    else
+                    {
+                        matcher.jsonEntryNotFound.Add(key);
+                    }
+                    xmlResponseItemsCopy.Remove(key);
+                }
+
+                foreach (String key in xmlResponseItemsCopy.Keys)
+                {
+                    matcher.xmlEntryNotFound.Add(key);
+                }
+
+                //处理当前Matcher的匹配结果
+                int jsonEntryNotFoundCount = matcher.jsonEntryNotFound.Count;
+                int xmlEntryNotFound = matcher.xmlEntryNotFound.Count;
+                //json有没有被覆盖的数据（通常有问题，需要更新XML）
+                if (jsonEntryNotFoundCount > 0)
+                {
+                    matcher.matchResult = JsonXMLMatcher.MatchResult.NOT_MATCH;
+                    matcher.strResult += "XML has items missing:";
+                    foreach (String key in matcher.jsonEntryNotFound)
+                    {
+                        matcher.strResult += key + ",";
+                    }
+                    matcher.strResult += "\n";
+                }
+                //XML有没有被覆盖到的数据（常见的，定义的规则中是有字段不是必须返回的）
+                else if (xmlEntryNotFound > 0)
+                {
+                    matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH_PARTLY;
+                    matcher.strResult += "Json has items missing:";
+                    foreach (String key in matcher.xmlEntryNotFound)
+                    {
+                        matcher.strResult += key + ",";
+                    }
+                    matcher.strResult += "\n";
+                }
+                //针对每个匹配的item再做下对比
+                foreach (String jsonItemKey in matcher.jsonItemMatchStatus.Keys)
+                {
+                    JsonXMLItemMatcher result = matcher.jsonItemMatchStatus[jsonItemKey];
+                    switch (result.itemMatchResult)
+                    {
+                        case JsonXMLItemMatcher.ItemMatchResult.STRING_MATCHED:
+                        case JsonXMLItemMatcher.ItemMatchResult.LIST_ENTRY_MATCHED:
+                        case JsonXMLItemMatcher.ItemMatchResult.DICT_MATCHED:
+                        case JsonXMLItemMatcher.ItemMatchResult.INT_MATCHED:
+                        case JsonXMLItemMatcher.ItemMatchResult.NULL_MATCHED:
+                            if (matcher.matchResult == JsonXMLMatcher.MatchResult.DEFAULT)
+                            {
+                                matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH;
+                            }
+                            break;
+                        case JsonXMLItemMatcher.ItemMatchResult.DICT_NULL:
+                            if (matcher.matchResult <= JsonXMLMatcher.MatchResult.MATCH)
+                            {
+                                matcher.matchResult = JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL;
+                            }
+                            break;
+                        case JsonXMLItemMatcher.ItemMatchResult.LIST_NULL:
+                            if (matcher.matchResult <= JsonXMLMatcher.MatchResult.MATCH)
+                            {
+                                matcher.matchResult = JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL;
+                            }
+                            break;
+                        case JsonXMLItemMatcher.ItemMatchResult.TYPE_NOT_MATCH:
+                            matcher.matchResult = JsonXMLMatcher.MatchResult.NOT_MATCH;
+                            break;
+                        case JsonXMLItemMatcher.ItemMatchResult.LIST_OR_DICT_PARTLY_MATCHED:
+                            matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH_PARTLY;
+                            break;
+                        default:
+                            break;
+                    }
+                    matcher.strResult += result.ToString();
+                }
+                xmlResponseItemsCopy = null;
             }
 
-            foreach (String key in xmlResponseItemsCopy.Keys)
-            {
-                matcher.xmlEntryNotFound.Add(key);
-            }
-
-            //处理当前Matcher的匹配结果
-            int jsonEntryNotFoundCount = matcher.jsonEntryNotFound.Count;
-            int xmlEntryNotFound = matcher.xmlEntryNotFound.Count;
-            //json有没有被覆盖的数据（通常有问题，需要更新XML）
-            if (jsonEntryNotFoundCount > 0)
-            {
-                matcher.matchResult = JsonXMLMatcher.MatchResult.NOT_MATCH;
-                matcher.strResult += "XML has items missing:";
-                foreach (String key in matcher.jsonEntryNotFound)
-                {
-                    matcher.strResult += key + ",";
-                }
-                matcher.strResult += "\n";
-            }
-            //XML有没有被覆盖到的数据（常见的，定义的规则中是有字段不是必须返回的）
-            else if (xmlEntryNotFound > 0)
-            {
-                matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH_PARTLY;
-                matcher.strResult += "Json has items missing:";
-                foreach (String key in matcher.xmlEntryNotFound)
-                {
-                    matcher.strResult += key + ",";
-                }
-                matcher.strResult += "\n";
-            }
-            //针对每个匹配的item再做下对比
-            foreach (String jsonItemKey in matcher.jsonItemMatchStatus.Keys)
-            {
-                JsonXMLItemMatcher result = matcher.jsonItemMatchStatus[jsonItemKey];
-                switch (result.itemMatchResult)
-                {
-                    case JsonXMLItemMatcher.ItemMatchResult.STRING_MATCHED:
-                    case JsonXMLItemMatcher.ItemMatchResult.LIST_ENTRY_MATCHED:
-                    case JsonXMLItemMatcher.ItemMatchResult.DICT_MATCHED:
-                    case JsonXMLItemMatcher.ItemMatchResult.INT_MATCHED:
-                    case JsonXMLItemMatcher.ItemMatchResult.NULL_MATCHED:
-                        if (matcher.matchResult == JsonXMLMatcher.MatchResult.DEFAULT)
-                        {
-                            matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH;
-                        }
-                        break;
-                    case JsonXMLItemMatcher.ItemMatchResult.DICT_NULL:
-                        if (matcher.matchResult <= JsonXMLMatcher.MatchResult.MATCH)
-                        {
-                            matcher.matchResult = JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL;
-                        }
-                        break;
-                    case JsonXMLItemMatcher.ItemMatchResult.LIST_NULL:
-                        if (matcher.matchResult <= JsonXMLMatcher.MatchResult.MATCH)
-                        {
-                            matcher.matchResult = JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL;
-                        }
-                        break;
-                    case JsonXMLItemMatcher.ItemMatchResult.TYPE_NOT_MATCH:
-                        matcher.matchResult = JsonXMLMatcher.MatchResult.NOT_MATCH;
-                        break;
-                    case JsonXMLItemMatcher.ItemMatchResult.LIST_OR_DICT_PARTLY_MATCHED:
-                        matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH_PARTLY;
-                        break;
-                    default:
-                        break;
-                }
-                matcher.strResult += result.ToString();
-            }
-
-            xmlResponseItemsCopy = null;
             return matcher;
         }
 
@@ -132,7 +150,7 @@ namespace ApiTestExtension.Utils
                 case JsonResponseEntry.ResponseEntryType.DICT:
                     if (xmlItem.Type == ResponseItemType.DICT)
                     {
-                        JsonXMLMatcher matcher = matchJsonWithXML(jsonEntry.subEntry, xmlItem.SubItems);
+                        JsonXMLMatcher matcher = matchJsonWithXML(jsonEntry.subEntry, xmlItem.SubItems, false);
                         switch (matcher.matchResult)
                         {
                             case JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL:
@@ -177,7 +195,7 @@ namespace ApiTestExtension.Utils
                 case JsonResponseEntry.ResponseEntryType.LIST_ENTRY:
                     if (xmlItem.Type == ResponseItemType.LIST)
                     {
-                        JsonXMLMatcher matcher = matchJsonWithXML(jsonEntry.listEntry[0], xmlItem.SubItems);
+                        JsonXMLMatcher matcher = matchJsonWithXML(jsonEntry.listEntry[0], xmlItem.SubItems, false);
                         switch (matcher.matchResult)
                         {
                             case JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL:
@@ -282,90 +300,115 @@ namespace ApiTestExtension.Utils
             return itemMatcher;
         }
 
-        public static Dictionary<String, JsonResponseEntry> analyzeResponseEntry(JObject jobject)
+        public static Dictionary<String, JsonResponseEntry> analyzeResponseEntry(JToken jToken)
         {
             Dictionary<String, JsonResponseEntry> responseEntry = new Dictionary<string, JsonResponseEntry>();
 
-            foreach (JProperty jpItem in jobject.Children())
+            if (jToken is JArray)
             {
-                String key = jpItem.Name;
-                JToken jt = jpItem.Value;
-                String value = jpItem.Value.ToString();
+                //约定key为""且dict仅有1项表示被解析的JToken是一个Array，暂时仅支持ENTRY_LIST的根
+                String key = "";
                 JsonResponseEntry entry = new JsonResponseEntry();
-                entry.key = key;
-                
-                //null类型
-                if (jpItem.Value is JValue && ((JValue)(jpItem.Value)).Value == null)
+                JArray ja = jToken as JArray;
+                if (ja.Count != 0)
                 {
-                    entry.type = JsonResponseEntry.ResponseEntryType.NULL;
-                }
-                //dict类型,内容为空
-                else if (value == "{}")
-                {
-                    entry.type = ApiTestExtension.DataStructure.JsonAnalyzer.JsonResponseEntry.ResponseEntryType.DICT_NULL;
-                }
-                //value为String空
-                else if (value == "")
-                {
-                    entry.type = JsonResponseEntry.ResponseEntryType.STRING;
-                    entry.stringValue = value;
-                }
-                //dict类型
-                else if (jpItem.Value is JObject)
-                {
-                    entry.type = JsonResponseEntry.ResponseEntryType.DICT;
-                    Dictionary<String, JsonResponseEntry> subEntry = new Dictionary<string, JsonResponseEntry>();
-                    entry.subEntry = analyzeResponseEntry(JObject.Parse(value));
-                }
-                //list类型
-                else if (jpItem.Value is JArray)
-                {
-                    JArray ja = JArray.Parse(value);
-                    if (ja.Count == 0)
+                    if (ja[0] is JObject)
                     {
-                        entry.type = JsonResponseEntry.ResponseEntryType.LIST_NULL;
-                    }
-                    else
-                    {
-                        if (ja[0] is JObject)
+                        entry.type = JsonResponseEntry.ResponseEntryType.LIST_ENTRY;
+                        List<Dictionary<String, JsonResponseEntry>> list = new List<Dictionary<string, JsonResponseEntry>>();
+                        for (int i = 0; i < ja.Count; i++)
                         {
-                            entry.type = JsonResponseEntry.ResponseEntryType.LIST_ENTRY;
-                            List<Dictionary<String, JsonResponseEntry>> list = new List<Dictionary<string, JsonResponseEntry>>();
-                            for (int i = 0; i < ja.Count; i++)
-                            {
-                                JObject jo = (JObject)ja[i];
-                                list.Add(analyzeResponseEntry(jo));
-                            }
-                            entry.listEntry = list;
+                            JObject jo = (JObject)ja[i];
+                            list.Add(analyzeResponseEntry(jo));
                         }
-                        else
-                        {
-                            entry.type = JsonResponseEntry.ResponseEntryType.LIST_STRING;
-                            List<String> list = new List<string>();
-                            for (int i = 0; i < ja.Count; i++)
-                            {
-                                list.Add(ja[i].ToString());
-                            }
-                            entry.listString = list;
-                        }
+                        entry.listEntry = list;
+                        responseEntry.Add(key, entry);
                     }
                 }
-                else
+            }
+            else if (jToken is JObject)
+            {
+                foreach (JProperty jpItem in ((JObject)jToken).Children())
                 {
-                    //Int类型
-                    try
+                    String key = jpItem.Name;
+                    JToken jt = jpItem.Value;
+                    String value = jpItem.Value.ToString();
+                    JsonResponseEntry entry = new JsonResponseEntry();
+                    entry.key = key;
+
+                    //null类型
+                    if (jpItem.Value is JValue && ((JValue)(jpItem.Value)).Value == null)
                     {
-                        entry.type = JsonResponseEntry.ResponseEntryType.INT;
-                        entry.intValue = long.Parse(value);
+                        entry.type = JsonResponseEntry.ResponseEntryType.NULL;
                     }
-                    //String类型
-                    catch
+                    //dict类型,内容为空
+                    else if (value == "{}")
+                    {
+                        entry.type = ApiTestExtension.DataStructure.JsonAnalyzer.JsonResponseEntry.ResponseEntryType.DICT_NULL;
+                    }
+                    //value为String空
+                    else if (value == "")
                     {
                         entry.type = JsonResponseEntry.ResponseEntryType.STRING;
                         entry.stringValue = value;
                     }
+                    //dict类型
+                    else if (jpItem.Value is JObject)
+                    {
+                        entry.type = JsonResponseEntry.ResponseEntryType.DICT;
+                        Dictionary<String, JsonResponseEntry> subEntry = new Dictionary<string, JsonResponseEntry>();
+                        entry.subEntry = analyzeResponseEntry(JObject.Parse(value));
+                    }
+                    //list类型
+                    else if (jpItem.Value is JArray)
+                    {
+                        JArray ja = JArray.Parse(value);
+                        if (ja.Count == 0)
+                        {
+                            entry.type = JsonResponseEntry.ResponseEntryType.LIST_NULL;
+                        }
+                        else
+                        {
+                            if (ja[0] is JObject)
+                            {
+                                entry.type = JsonResponseEntry.ResponseEntryType.LIST_ENTRY;
+                                List<Dictionary<String, JsonResponseEntry>> list = new List<Dictionary<string, JsonResponseEntry>>();
+                                for (int i = 0; i < ja.Count; i++)
+                                {
+                                    JObject jo = (JObject)ja[i];
+                                    list.Add(analyzeResponseEntry(jo));
+                                }
+                                entry.listEntry = list;
+                            }
+                            else
+                            {
+                                entry.type = JsonResponseEntry.ResponseEntryType.LIST_STRING;
+                                List<String> list = new List<string>();
+                                for (int i = 0; i < ja.Count; i++)
+                                {
+                                    list.Add(ja[i].ToString());
+                                }
+                                entry.listString = list;
+                            }
+                        }
+                    }
+                    else
+                    {
+                        //Int类型
+                        try
+                        {
+                            entry.type = JsonResponseEntry.ResponseEntryType.INT;
+                            entry.intValue = long.Parse(value);
+                        }
+                        //String类型
+                        catch
+                        {
+                            entry.type = JsonResponseEntry.ResponseEntryType.STRING;
+                            entry.stringValue = value;
+                        }
+                    }
+                    responseEntry.Add(key, entry);
                 }
-                responseEntry.Add(key, entry);
             }
 
             return responseEntry;
@@ -410,7 +453,7 @@ namespace ApiTestExtension.Utils
                 case JsonResponseEntry.ResponseEntryType.INT:
                     return new JProperty(responseEntry.key, new JValue(responseEntry.intValue));
                 case JsonResponseEntry.ResponseEntryType.NULL:
-                    return new JProperty(responseEntry.key, new JValue("").Value=null);
+                    return new JProperty(responseEntry.key, new JValue("").Value = null);
                 default:
                     return null;
             }

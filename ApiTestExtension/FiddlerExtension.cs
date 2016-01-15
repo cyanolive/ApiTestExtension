@@ -199,12 +199,12 @@ namespace ApiTestExtension
                 //}
                 foreach (XMLApiItem item in apiItems.Values)
                 {
-                    if (oSession.uriContains(item.Apiurl) && item.Response.Type == ResponseType.JSON)
+                    if (oSession.uriContains(item.Apiurl) && item.Response.Type == ResponseType.JSON || item.Response.Type == ResponseType.JSON_LIST)
                     {
                         String orgResponseBody = Encoding.UTF8.GetString(oSession.responseBodyBytes);
-                        JObject joResponse = JObject.Parse(orgResponseBody);
-                        Dictionary<String, JsonResponseEntry> responseJsonEntry = JsonUtil.analyzeResponseEntry(joResponse);
-                        JsonXMLMatcher matcher = JsonUtil.matchJsonWithXML(responseJsonEntry, item.Response.Items);
+                        JToken jtResponse = JToken.Parse(orgResponseBody);
+                        Dictionary<String, JsonResponseEntry> responseJsonEntry = JsonUtil.analyzeResponseEntry(jtResponse);
+                        JsonXMLMatcher matcher = JsonUtil.matchJsonWithXML(responseJsonEntry, item.Response.Items, item.Response.Type == ResponseType.JSON_LIST);
                         if (matcher.matchResult == JsonXMLMatcher.MatchResult.MATCH)
                         {
                             logger.Log(item.Apiurl + " match result: MATCHED");
@@ -212,7 +212,7 @@ namespace ApiTestExtension
                         else
                         {
                             logger.Log(item.Apiurl + " match result:" + matcher.matchResultToString() + "\nroot->\n    " +
-                                JsonUtil.matchJsonWithXML(responseJsonEntry, item.Response.Items).ToString().Replace("\n", "\n    "));
+                                matcher.ToString().Replace("\n", "\n    "));
                         }
                         String newResponseBody = JsonUtil.assembleJson(responseJsonEntry).ToString();
                         String str = Regex.Replace(newResponseBody.Replace(@"\\", @"\"), @"\s *", "").Replace(",\"", ", \"").Replace("\":", "\": ");

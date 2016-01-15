@@ -8,6 +8,7 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
+using System.Windows.Forms;
 using System.Xml;
 
 namespace ApiTestExtension.Utils
@@ -76,6 +77,9 @@ namespace ApiTestExtension.Utils
                 case "json":
                     apiItem.Response.Type = ResponseType.JSON;
                     break;
+                case "json_list":
+                    apiItem.Response.Type = ResponseType.JSON_LIST;
+                    break;
                 case "raw":
                     apiItem.Response.Type = ResponseType.RAW;
                     break;
@@ -143,6 +147,6 @@ namespace ApiTestExtension.Utils
                 }
             }
             return responseItem;
-        }      
+        }
     }
 }

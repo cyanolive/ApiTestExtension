@@ -15,6 +15,7 @@ namespace ApiTestExtension.DataStructure.XMLAnalyzer
     public enum ResponseType
     {
         JSON,
-        RAW
+        RAW,
+        JSON_LIST
     }
 }

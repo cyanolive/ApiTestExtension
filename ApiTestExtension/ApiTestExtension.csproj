@@ -106,8 +106,8 @@
   <ItemGroup />
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
   <PropertyGroup>
-    <PostBuildEvent>copy "$(ProjectDir)$(OutDir)$(TargetFileName)" "F:\Documents\Fiddler2\Scripts\"
-copy "$(ProjectDir)$(OutDir)Newtonsoft.Json.dll" "F:\Documents\Fiddler2\Scripts\"</PostBuildEvent>
+    <PostBuildEvent>copy "$(ProjectDir)$(OutDir)$(TargetFileName)" "D:\Documents\Fiddler2\Scripts\"
+copy "$(ProjectDir)$(OutDir)Newtonsoft.Json.dll" "D:\Documents\Fiddler2\Scripts\"</PostBuildEvent>
   </PropertyGroup>
   <!-- To modify your build process, add your task inside one of the targets below and uncomment it. 
        Other similar extension points exist, see Microsoft.Common.targets.
