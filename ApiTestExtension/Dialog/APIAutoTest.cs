@@ -93,8 +93,10 @@ namespace ApiTestExtension.Dialog
             Dictionary<String, XMLApiItem> apiItems = new Dictionary<String, XMLApiItem>();
             foreach (FileInfo fi in xmlFiles)
             {
-                XMLApiItem item = XMLUtil.analyzeXML(fi);
-                apiItems.Add(item.Apiurl ,XMLUtil.analyzeXML(fi));
+                foreach (XMLApiItem item in XMLUtil.analyzeXML(fi).Values)
+                {
+                    apiItems[item.Apiurl] = item;
+                }
             }
             return apiItems;
         }
@@ -116,6 +118,7 @@ namespace ApiTestExtension.Dialog
                     ToolStripMenuItem menuFolderItem = null;
                     bool menuFolderMenuExists = false;
                     String menuText = item.MenuText;
+                    bool menuMenuItemExists = false;
 
                     //创建product项
                     foreach (ToolStripMenuItem tsmi in menuStrip.Items)
@@ -154,11 +157,54 @@ namespace ApiTestExtension.Dialog
                     }
 
                     //创建API项
-                    ToolStripMenuItem menuItem = new ToolStripMenuItem();
-                    menuItem.Text = menuText;
-                    menuItem.Name = item.Apiurl;
-                    menuItem.Click += new System.EventHandler(miList_Click);
-                    menuFolderItem.DropDownItems.Add(menuItem);
+                    foreach (ToolStripMenuItem tsmi in menuFolderItem.DropDownItems)
+                    {
+                        if (tsmi.Text.Equals(menuText))
+                        {
+                            menuMenuItemExists = true;
+                            switch (item.Response.matchResult)
+                            {
+                                case DataStructure.Matcher.JsonXMLMatcher.MatchResult.MATCH:
+                                    tsmi.BackColor = Color.LightGreen;
+                                    break;
+                                case DataStructure.Matcher.JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL:
+                                case DataStructure.Matcher.JsonXMLMatcher.MatchResult.MATCH_PARTLY:
+                                    tsmi.BackColor = Color.LightBlue;
+                                    break;
+                                case DataStructure.Matcher.JsonXMLMatcher.MatchResult.NOT_MATCH:
+                                    tsmi.BackColor = Color.Red;
+                                    break;
+                                default:
+                                    tsmi.BackColor = Color.White;
+                                    break;
+                            }
+                            break;
+                        }
+                    }
+                    if (!menuMenuItemExists)
+                    {
+                        ToolStripMenuItem menuItem = new ToolStripMenuItem();
+                        menuItem.Text = menuText;
+                        menuItem.Name = item.Apiurl;
+                        menuItem.Click += new System.EventHandler(miList_Click);
+                        menuFolderItem.DropDownItems.Add(menuItem);
+
+                        switch(item.Response.matchResult)
+                        {
+                            case DataStructure.Matcher.JsonXMLMatcher.MatchResult.MATCH:
+                                menuItem.BackColor = Color.LightGreen;
+                                break;
+                            case DataStructure.Matcher.JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL:
+                            case DataStructure.Matcher.JsonXMLMatcher.MatchResult.MATCH_PARTLY:
+                                menuItem.BackColor = Color.LightBlue;
+                                break;
+                            case DataStructure.Matcher.JsonXMLMatcher.MatchResult.NOT_MATCH:
+                                menuItem.BackColor = Color.Red;
+                                break;
+                            default:
+                                break;
+                        }
+                    }
                 }
             }
         }

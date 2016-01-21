@@ -1,5 +1,6 @@
 ﻿using ApiTestExtension.DataStructure;
 using ApiTestExtension.DataStructure.XMLAnalyzer;
+using ApiTestExtension.Dialog.ModRespDialogs;
 using ApiTestExtension.Utils;
 using System;
 using System.Collections.Generic;
@@ -20,7 +21,7 @@ namespace ApiTestExtension.Dialog
         protected String apiUrl;
         protected CommonData commonData;
         protected XMLApiItem xmlItem;
-        protected Dictionary<TreeNode, XMLResponseItem> nodeMap = new Dictionary<TreeNode, XMLResponseItem>();
+        public Dictionary<TreeNode, XMLResponseItem> nodeMap = new Dictionary<TreeNode, XMLResponseItem>();
 
         public String Title
         {
@@ -58,7 +59,7 @@ namespace ApiTestExtension.Dialog
             initTreeView();
         }
 
-        public void initTreeView()
+        private void initTreeView()
         {
             if (xmlItem.Response.Type == ResponseType.JSON || xmlItem.Response.Type == ResponseType.JSON_LIST)
             {
@@ -97,9 +98,97 @@ namespace ApiTestExtension.Dialog
                 default:
                     break;
             }
+            switch (item.matchResult)
+            {
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.DICT_MATCHED:
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.INT_MATCHED:
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.LIST_ENTRY_MATCHED:
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.LIST_STRING_MATCHED:
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.STRING_MATCHED:
+                    node.BackColor = Color.LightGreen;
+                    break;
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.DICT_NULL:
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.LIST_NULL:
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.NULL_MATCHED:
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.LIST_OR_DICT_PARTLY_MATCHED:
+                    node.BackColor = Color.Yellow;
+                    break;
+                case DataStructure.Matcher.JsonXMLItemMatcher.ItemMatchResult.TYPE_NOT_MATCH:
+                    node.BackColor = Color.White;
+                    break;
+                default:
+                    node.BackColor = Color.Red;
+                    break;
+            }
+            switch (item.Type)
+            {
+                case ResponseItemType.STRING:
+                    node.ImageIndex = 0;
+                    node.SelectedImageIndex = 0;
+                    break;
+                case ResponseItemType.INT:
+                    node.ImageIndex = 1;
+                    node.SelectedImageIndex = 1;
+                    break;
+                case ResponseItemType.LIST:
+                    node.ImageIndex = 2;
+                    node.SelectedImageIndex = 2;
+                    break;
+                case ResponseItemType.DICT:
+                    node.ImageIndex = 3;
+                    node.SelectedImageIndex = 3;
+                    break;
+                default:
+                    break;
+            }
             nodeMap.Add(node, item);
             node.ContextMenuStrip = cmsTreeNode;
             return node;
+        }
+
+        private void rbReq_Click(object sender, EventArgs e)
+        {
+            switch (((RadioButton)sender).Name)
+            {
+                case "rbReqNoRestrict":
+                    tbReqExact.Enabled = false;
+                    tbReqContains.Enabled = false;
+                    tbReqReg.Enabled = false;
+                    panelReqRule.Enabled = false;
+                    break;
+                case "rbReqExact":
+                    tbReqExact.Enabled = true;
+                    tbReqContains.Enabled = false;
+                    tbReqReg.Enabled = false;
+                    panelReqRule.Enabled = false;
+                    break;
+                case "rbReqContains":
+                    tbReqExact.Enabled = false;
+                    tbReqContains.Enabled = true;
+                    tbReqReg.Enabled = false;
+                    panelReqRule.Enabled = false;
+                    break;
+                case "rbReqReg":
+                    tbReqExact.Enabled = false;
+                    tbReqContains.Enabled = false;
+                    tbReqReg.Enabled = true;
+                    panelReqRule.Enabled = false;
+                    break;
+                case "rbReqRule":
+                    tbReqExact.Enabled = false;
+                    tbReqContains.Enabled = false;
+                    tbReqReg.Enabled = false;
+                    panelReqRule.Enabled = true;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        private void tsmiModValue_Click(object sender, EventArgs e)
+        {
+            ModValueDialog dialog = new ModValueDialog();
+            dialog.ShowDialog(this);
         }
     }
 }

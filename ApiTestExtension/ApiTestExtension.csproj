@@ -79,6 +79,12 @@
     <Compile Include="Dialog\BaseApiMockDialog.Designer.cs">
       <DependentUpon>BaseApiMockDialog.cs</DependentUpon>
     </Compile>
+    <Compile Include="Dialog\ModRespDialogs\ModValueDialog.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Dialog\ModRespDialogs\ModValueDialog.Designer.cs">
+      <DependentUpon>ModValueDialog.cs</DependentUpon>
+    </Compile>
     <Compile Include="Interfaces\AnalyzeResponseCallback.cs" />
     <Compile Include="APIRequestAnalyzer.cs" />
     <Compile Include="FiddlerExtension.cs" />
@@ -101,6 +107,9 @@
     </EmbeddedResource>
     <EmbeddedResource Include="Dialog\BaseApiMockDialog.resx">
       <DependentUpon>BaseApiMockDialog.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Dialog\ModRespDialogs\ModValueDialog.resx">
+      <DependentUpon>ModValueDialog.cs</DependentUpon>
     </EmbeddedResource>
   </ItemGroup>
   <ItemGroup />

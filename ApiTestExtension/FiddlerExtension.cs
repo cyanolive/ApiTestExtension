@@ -187,7 +187,7 @@ namespace ApiTestExtension
 
         public void AutoTamperResponseBefore(Session oSession)
         {
-            if (bAutotestEnabled && apiItems != null)
+            if (bAutotestEnabled && apiItems != null && oSession.responseCode == 200)
             {
                 //foreach (MockResponseRules singleRule in rules.Values)
                 //{
@@ -205,12 +205,17 @@ namespace ApiTestExtension
                         JToken jtResponse = JToken.Parse(orgResponseBody);
                         Dictionary<String, JsonResponseEntry> responseJsonEntry = JsonUtil.analyzeResponseEntry(jtResponse);
                         JsonXMLMatcher matcher = JsonUtil.matchJsonWithXML(responseJsonEntry, item.Response.Items, item.Response.Type == ResponseType.JSON_LIST);
+                        item.Response.matchResult = matcher.matchResult;
                         if (matcher.matchResult == JsonXMLMatcher.MatchResult.MATCH)
                         {
                             logger.Log(item.Apiurl + " match result: MATCHED");
                         }
                         else
                         {
+                            if (matcher.matchResult == JsonXMLMatcher.MatchResult.NOT_MATCH)
+                            {
+                                oSession["ui-backcolor"] = "red";
+                            }
                             logger.Log(item.Apiurl + " match result:" + matcher.matchResultToString() + "\nroot->\n    " +
                                 matcher.ToString().Replace("\n", "\n    "));
                         }

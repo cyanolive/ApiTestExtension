@@ -107,11 +107,14 @@ namespace ApiTestExtension.Utils
                                 matcher.matchResult = JsonXMLMatcher.MatchResult.LIST_OR_DICT_NULL;
                             }
                             break;
+                        case JsonXMLItemMatcher.ItemMatchResult.LIST_OR_DICT_PARTLY_MATCHED:
+                            if (matcher.matchResult <= JsonXMLMatcher.MatchResult.MATCH)
+                            {
+                                matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH_PARTLY;
+                            }
+                            break;
                         case JsonXMLItemMatcher.ItemMatchResult.TYPE_NOT_MATCH:
                             matcher.matchResult = JsonXMLMatcher.MatchResult.NOT_MATCH;
-                            break;
-                        case JsonXMLItemMatcher.ItemMatchResult.LIST_OR_DICT_PARTLY_MATCHED:
-                            matcher.matchResult = JsonXMLMatcher.MatchResult.MATCH_PARTLY;
                             break;
                         default:
                             break;
@@ -394,17 +397,25 @@ namespace ApiTestExtension.Utils
                     }
                     else
                     {
-                        //Int类型
-                        try
-                        {
-                            entry.type = JsonResponseEntry.ResponseEntryType.INT;
-                            entry.intValue = long.Parse(value);
-                        }
-                        //String类型
-                        catch
+                        if (jpItem.ToString().Contains("\": \""))
                         {
                             entry.type = JsonResponseEntry.ResponseEntryType.STRING;
                             entry.stringValue = value;
+                        }
+                        else
+                        {
+                            //Int类型
+                            try
+                            {
+                                entry.type = JsonResponseEntry.ResponseEntryType.INT;
+                                entry.intValue = long.Parse(value, System.Globalization.NumberStyles.Integer);
+                            }
+                            //String类型
+                            catch
+                            {
+                                entry.type = JsonResponseEntry.ResponseEntryType.STRING;
+                                entry.stringValue = value;
+                            }
                         }
                     }
                     responseEntry.Add(key, entry);
